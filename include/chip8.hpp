@@ -1,9 +1,17 @@
 #pragma once
 
+#include "sdl.hpp"
 #include <cstdint>
+
+enum EmuState {
+  RUNNING,
+  PAUSED,
+  QUIT
+};
 
 class Chip8 {
 private:
+  EmuState state;
   uint8_t mem[4096];
   bool display[32][64];
   uint16_t pc;
@@ -13,8 +21,15 @@ private:
   uint8_t delay;
   uint8_t sound;
   uint8_t gpr[16];
+  bool keypad[16];
+  config_t config;
+  SDL_app sdl;
+  Instruction opcode;
 
 public:
-  Chip8(char*);
-
+  Chip8(char *);
+  void run();
+  void cycle();
+  void get_input();
+  ~Chip8();
 };

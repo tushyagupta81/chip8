@@ -7,5 +7,6 @@ int main(int argc, char**argv) {
     return 1;
   }
   Chip8 chip(argv[1]);
+  chip.run();
   return 0;
 }

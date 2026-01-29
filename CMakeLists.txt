@@ -15,6 +15,7 @@ target_sources(Chip8
   PRIVATE
    src/main.cpp
    src/chip8.cpp
+   src/sdl.cpp
 )
 
  target_include_directories(Chip8
