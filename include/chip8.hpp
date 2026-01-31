@@ -22,6 +22,7 @@ private:
   uint8_t sound;
   uint8_t gpr[16];
   bool keypad[16];
+  bool is_sound_active;
   config_t config;
   SDL_app sdl;
   Instruction opcode;
@@ -30,6 +31,7 @@ public:
   Chip8(char *);
   void run();
   void cycle();
+  void update_timers();
   void get_input();
   ~Chip8();
 };

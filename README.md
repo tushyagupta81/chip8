@@ -33,3 +33,10 @@
 ```
 
 https://github.com/vajradevam/chip8
+
+## configurage inst
+BNNN
+8XY6
+8XYE
+FX55
+FX65

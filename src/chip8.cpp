@@ -5,7 +5,9 @@
 #include "SDL3/SDL_timer.h"
 #include "sdl.hpp"
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <fstream>
 #include <iostream>
 
@@ -19,7 +21,7 @@ Chip8::Chip8(char *rom_path) {
       .inst_per_sec = 700,
   };
 
-  this->sdl = SDL_app();
+  // this->sdl = SDL_app();
 
   if (this->sdl.init(this->config.width, this->config.height,
                      this->config.scaling_factor) == SDL_APP_FAILURE) {
@@ -73,8 +75,11 @@ Chip8::Chip8(char *rom_path) {
 
   this->sound = 0;
   this->delay = 0;
+  this->is_sound_active = false;
 
   memset(this->gpr, 0, sizeof(this->gpr));
+
+  std::srand(std::time(NULL));
 
   this->state = EmuState::RUNNING;
 }
@@ -82,6 +87,8 @@ Chip8::Chip8(char *rom_path) {
 void Chip8::cycle() {
   this->opcode.inst = (this->mem[this->pc] << 8) | (this->mem[this->pc + 1]);
   this->pc += 2;
+
+  // std::cout << std::hex << std::uppercase << this->opcode.inst << std::endl;
 
   this->opcode.nnn = this->opcode.inst & 0x0FFF;
   this->opcode.nn = this->opcode.inst & 0x00FF;
@@ -96,7 +103,7 @@ void Chip8::cycle() {
       memset(this->display, false, sizeof(this->display));
       break;
     case 0xEE:
-      if (this->stp < this->stack) {
+      if (this->stp > this->stack) {
         this->stp--;
         this->pc = *(this->stp);
       } else {
@@ -144,6 +151,59 @@ void Chip8::cycle() {
     this->gpr[this->opcode.x] += this->opcode.nn;
     break;
   case 0x08:
+    switch (this->opcode.n) {
+    case 0x0:
+      this->gpr[this->opcode.x] = this->gpr[opcode.y];
+      break;
+    case 0x1:
+      this->gpr[this->opcode.x] |= this->gpr[this->opcode.y];
+      break;
+    case 0x2:
+      this->gpr[this->opcode.x] &= this->gpr[this->opcode.y];
+      break;
+    case 0x3:
+      this->gpr[this->opcode.x] ^= this->gpr[this->opcode.y];
+      break;
+    case 0x4: {
+      uint16_t sum =
+          (uint16_t)this->gpr[this->opcode.x] + this->gpr[this->opcode.y];
+      this->gpr[this->opcode.x] = (uint8_t)sum;
+      if (sum > 0xFF) {
+        this->gpr[0xF] = 1;
+      } else {
+        this->gpr[0xF] = 0;
+      }
+      break;
+    }
+    case 0x5: {
+      if (this->gpr[this->opcode.y] > this->gpr[this->opcode.x]) {
+        this->gpr[0xF] = 0;
+      } else {
+        this->gpr[0xF] = 1;
+      }
+      this->gpr[this->opcode.x] =
+          this->gpr[this->opcode.x] - this->gpr[this->opcode.y];
+    }
+    case 0x6: {
+      this->gpr[0xF] = this->gpr[this->opcode.x] & 0x01;
+      this->gpr[this->opcode.x] >>= 1;
+      break;
+    }
+    case 0x7: {
+      if (this->gpr[this->opcode.x] > this->gpr[this->opcode.y]) {
+        this->gpr[0xF] = 0;
+      } else {
+        this->gpr[0xF] = 1;
+      }
+      this->gpr[this->opcode.x] =
+          this->gpr[this->opcode.y] - this->gpr[this->opcode.x];
+    }
+    case 0xE: {
+      this->gpr[0xF] = (this->gpr[this->opcode.x] & 0x80) >> 7;
+      this->gpr[this->opcode.x] <<= 1;
+      break;
+    }
+    }
     break;
   case 0x09:
     if (this->gpr[this->opcode.x] != this->gpr[this->opcode.y]) {
@@ -154,19 +214,22 @@ void Chip8::cycle() {
     this->i = this->opcode.nnn;
     break;
   case 0x0B:
+      this->pc = this->opcode.nnn + this->gpr[0];
+    // this->pc = this->opcode.nnn + this->gpr[this->opcode.x];
     break;
   case 0x0C:
+    this->gpr[this->opcode.x] = (uint8_t)(rand() & this->opcode.nn);
     break;
   case 0x0D: {
-    uint8_t x = this->gpr[this->opcode.x] & 63;
-    uint8_t y = this->gpr[this->opcode.y] & 31;
+    uint8_t x = this->gpr[this->opcode.x] % 64;
+    uint8_t y = this->gpr[this->opcode.y] % 32;
     uint8_t height = this->opcode.n;
     uint8_t sprite_byte;
 
     this->gpr[0xF] = 0;
 
     for (uint8_t row = 0; row < height; row++) {
-      if (this->i + row > sizeof(this->mem)) {
+      if ((size_t)this->i + row >= sizeof(this->mem)) {
         break;
       }
       uint8_t curr_y = y + row;
@@ -193,8 +256,74 @@ void Chip8::cycle() {
     break;
   }
   case 0x0E:
+    switch (this->opcode.nn) {
+    case 0x9E:
+      if (this->keypad[this->gpr[this->opcode.x] & 0xF]) {
+        this->pc += 2;
+      }
+      break;
+    case 0xA1:
+      if (!this->keypad[this->gpr[this->opcode.x] & 0xF]) {
+        this->pc += 2;
+      }
+      break;
+    }
     break;
   case 0x0F:
+    switch (this->opcode.nn) {
+    case 0x07:
+      this->gpr[this->opcode.x] = this->delay;
+      break;
+    case 0x0A: {
+      bool pressed = false;
+      for (uint8_t i = 0; i < sizeof(this->keypad) / sizeof(this->keypad[0]);
+           i++) {
+        if (this->keypad[i]) {
+          this->gpr[this->opcode.x] = i;
+          pressed = true;
+          break;
+        }
+      }
+      if (!pressed) {
+        this->pc -= 2;
+      }
+      break;
+    }
+    case 0x15:
+      this->delay = this->gpr[this->opcode.x];
+      break;
+    case 0x18:
+      this->sound = this->gpr[this->opcode.x];
+      break;
+    case 0x1E:
+      this->i += this->gpr[this->opcode.x];
+      if ((this->i >> 3) & 0x1) {
+        this->gpr[0xF] = 1;
+      }
+      break;
+    case 0x29:
+      this->i = (this->gpr[this->opcode.x] & 0xF) * 5 + 0x050;
+      break;
+    case 0x33: {
+      uint8_t num = this->gpr[this->opcode.x];
+      for (uint8_t digit = 0; digit < 3; digit++) {
+        uint8_t digit_extracted = num % 10;
+        num = num / 10;
+        this->mem[this->i + digit] = digit_extracted;
+      }
+      break;
+    }
+    case 0x55:
+      for (uint8_t offset = 0; offset <= this->opcode.x; offset++) {
+        this->mem[this->i + offset] = this->gpr[offset];
+      }
+      break;
+    case 0x65:
+      for (uint8_t offset = 0; offset <= this->opcode.x; offset++) {
+        this->gpr[offset] = this->mem[this->i + offset];
+      }
+      break;
+    }
     break;
   }
 }
@@ -207,7 +336,7 @@ void Chip8::run() {
   uint32_t cycle_start_tick;
   const double ms_per_instruction = 1000.0 / this->config.inst_per_sec;
 
-  while (this->state == EmuState::RUNNING) {
+  while (this->state != EmuState::QUIT) {
     cycle_start_tick = SDL_GetTicks();
 
     this->get_input();
@@ -235,7 +364,7 @@ void Chip8::run() {
     // --- Timer Updates (at 60Hz) ---
     uint32_t current_ticks = SDL_GetTicks();
     if (current_ticks - last_timer_update_tick >= timer_update_interval_ms) {
-      // update_timers(&chip8);
+      this->update_timers();
       // Also update screen at roughly 60Hz, coinciding with timer updates
       this->sdl.update_screen(this->config.fg_color, this->config.bg_color,
                               this->config.scaling_factor, this->display);
@@ -406,5 +535,29 @@ void Chip8::get_input() {
   }
 }
 
-Chip8::~Chip8(){
+Chip8::~Chip8() {}
+
+void Chip8::update_timers() {
+  if (this->delay > 0) {
+    this->delay--;
+  }
+
+  if (this->sound > 0) {
+    if (!this->is_sound_active) {
+      // platform_start_beep();
+      this->is_sound_active = true;
+    }
+    this->sound--;
+    if (this->sound == 0) {
+      if (this->is_sound_active) {
+        // platform_stop_beep();
+        this->is_sound_active = false;
+      }
+    }
+  } else {
+    if (this->is_sound_active) {
+      // platform_stop_beep();
+      this->is_sound_active = false;
+    }
+  }
 }
