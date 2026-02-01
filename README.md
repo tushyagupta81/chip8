@@ -1,18 +1,19 @@
 ## Specifications
 
 1. memory -> 4KB
-2. display -> 64x32(black and white)
-3. PC -> 12bit(actaully 16bit)
-4. I -> 16bit(points to memory)
-5. stack -> 16bit
-6. delay -> 8bit(60Hz)
-7. sound -> 8bit(60Hz)(Sound till not 0)
-8. GPR -> 16x8bit(V0 to VF -> hexadecimal)(VF used as flag reg)
-9. Interpreter in 000 -> 1FF, games from mem 200
-10. Font
-  - Should have 0 -> F
-  - Each sprite sheet should be 4x5 pixel(w,h)
-  - In location 050 -> 09F
+1. display -> 64x32(black and white)
+1. PC -> 12bit(actaully 16bit)
+1. I -> 16bit(points to memory)
+1. stack -> 16bit
+1. delay -> 8bit(60Hz)
+1. sound -> 8bit(60Hz)(Sound till not 0)
+1. GPR -> 16x8bit(V0 to VF -> hexadecimal)(VF used as flag reg)
+1. Interpreter in 000 -> 1FF, games from mem 200
+1. Font
+   - Should have 0 -> F
+   - Each sprite sheet should be 4x5 pixel(w,h)
+   - In location 050 -> 09F
+
 ```sh
 0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -32,11 +33,16 @@
 0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 ```
 
-https://github.com/vajradevam/chip8
+## TODO: Configureable inst
 
-## configurage inst
-BNNN
-8XY6
-8XYE
-FX55
-FX65
+1. BNNN
+1. 8XY6
+1. 8XYE
+1. FX55
+1. FX65
+
+## Acknowledgement
+
+[Reference Repo](https://github.com/vajradevam/chip8)\
+[High level guide](https://tobiasvl.github.io/blog/write-a-chip-8-emulator)\
+[All instructions](http://devernay.free.fr/hacks/chip8/C8TECH10.HTM)
